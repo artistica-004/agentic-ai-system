@@ -94,3 +94,6 @@ pytest tests/ -v
 - **asyncio** — async/await throughout
 - **pydantic** — data validation
 - **pytest** — testing
+
+## 📄 Documentation
+Full technical documentation: [View Docs](docs/agentic_ai_documentation.docx)
