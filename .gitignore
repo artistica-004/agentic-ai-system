@@ -1,0 +1,19 @@
+# Environment variables - NEVER commit this
+.env
+
+# Virtual environment
+venv/
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+
+# pytest cache
+.pytest_cache/
+
+# VS Code settings
+.vscode/
+
+test_orch.py
+test_ui.html
