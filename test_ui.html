@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Agentic AI System Tester</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #0f0f0f;
+            color: #e0e0e0;
+        }
+        h1 { color: #7c3aed; }
+        textarea {
+            width: 100%;
+            height: 100px;
+            background: #1e1e1e;
+            color: #e0e0e0;
+            border: 1px solid #7c3aed;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 15px;
+            resize: vertical;
+        }
+        button {
+            background: #7c3aed;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover { background: #6d28d9; }
+        button:disabled { background: #444; cursor: not-allowed; }
+        #status {
+            margin-top: 20px;
+            padding: 12px;
+            background: #1e1e1e;
+            border-radius: 8px;
+            border-left: 4px solid #7c3aed;
+            font-size: 14px;
+        }
+        #events {
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+            background: #1e1e1e;
+            border-radius: 8px;
+            padding: 12px;
+        }
+        .event {
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 6px;
+            font-size: 13px;
+            border-left: 3px solid #444;
+        }
+        .event.in_progress { border-left-color: #f59e0b; }
+        .event.completed   { border-left-color: #10b981; }
+        .event.connected   { border-left-color: #3b82f6; }
+        .event.done        { border-left-color: #7c3aed; }
+        #report {
+            margin-top: 20px;
+            background: #1e1e1e;
+            border-radius: 8px;
+            padding: 20px;
+            white-space: pre-wrap;
+            font-size: 14px;
+            line-height: 1.6;
+            display: none;
+            border: 1px solid #10b981;
+        }
+        .label {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 5px;
+        }
+        .task-id {
+            font-size: 12px;
+            color: #7c3aed;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>🤖 Agentic AI System Tester</h1>
+
+<div class="label">Enter your task:</div>
+<textarea id="taskInput" placeholder="e.g. Research climate change and write a detailed report">Research the benefits of meditation and write a comprehensive report</textarea>
+
+<br>
+<button id="submitBtn" onclick="submitTask()">🚀 Submit Task</button>
+<button onclick="clearAll()" style="background:#374151; margin-left:10px">🗑 Clear</button>
+
+<div id="status">Status: Waiting for task submission...</div>
+<div class="task-id" id="taskIdDisplay"></div>
+
+<div class="label" style="margin-top:20px">📡 Live Agent Updates:</div>
+<div id="events"></div>
+
+<div class="label" style="margin-top:20px">📄 Final Report:</div>
+<div id="report"></div>
+
+<script>
+    let eventSource = null;
+
+    async function submitTask() {
+        const task = document.getElementById('taskInput').value.trim();
+        if (!task) {
+            alert('Please enter a task!');
+            return;
+        }
+
+        // Disable button
+        document.getElementById('submitBtn').disabled = true;
+        document.getElementById('status').textContent = 'Status: Submitting task...';
+        document.getElementById('events').innerHTML = '';
+        document.getElementById('report').style.display = 'none';
+
+        try {
+            // Submit task
+            const response = await fetch('http://localhost:8000/task', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ task: task })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.detail || 'Failed to submit task');
+            }
+
+            const taskId = data.task_id;
+            document.getElementById('taskIdDisplay').textContent = `Task ID: ${taskId}`;
+            document.getElementById('status').textContent = `Status: Task submitted! Streaming updates...`;
+
+            // Start streaming
+            startStream(taskId);
+
+        } catch (err) {
+            document.getElementById('status').textContent = `Error: ${err.message}`;
+            document.getElementById('submitBtn').disabled = false;
+        }
+    }
+
+    function startStream(taskId) {
+        // Close existing stream if any
+        if (eventSource) eventSource.close();
+
+        eventSource = new EventSource(`http://localhost:8000/stream/${taskId}`);
+
+        eventSource.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            addEvent(data);
+
+            // Update status
+            if (data.agent && data.step) {
+                document.getElementById('status').textContent =
+                    `Status: [${data.agent}] ${data.step} — ${data.status}`;
+            }
+
+            // Show final report
+            if (data.status === 'completed' && data.step === 'writing' && data.content) {
+                const reportDiv = document.getElementById('report');
+                reportDiv.textContent = data.content;
+                reportDiv.style.display = 'block';
+            }
+
+            // Task done
+            if (data.status === 'done') {
+                document.getElementById('status').textContent =
+                    '✅ Status: Task completed successfully!';
+                eventSource.close();
+                document.getElementById('submitBtn').disabled = false;
+            }
+
+            // Task failed
+            if (data.status === 'failed') {
+                document.getElementById('status').textContent =
+                    '❌ Status: Task failed. Check terminal logs.';
+                eventSource.close();
+                document.getElementById('submitBtn').disabled = false;
+            }
+        };
+
+        eventSource.onerror = function() {
+            document.getElementById('status').textContent =
+                'Stream connection error. Task may still be processing.';
+            document.getElementById('submitBtn').disabled = false;
+        };
+    }
+
+    function addEvent(data) {
+        const eventsDiv = document.getElementById('events');
+        const div = document.createElement('div');
+        div.className = `event ${data.status || ''}`;
+
+        const agent = data.agent || 'System';
+        const step = data.step || '';
+        const status = data.status || '';
+        const content = data.content
+            ? data.content.substring(0, 100) + (data.content.length > 100 ? '...' : '')
+            : data.message || '';
+
+        div.innerHTML = `<b>${agent}</b> [${step}] — ${status}<br><small>${content}</small>`;
+        eventsDiv.appendChild(div);
+        eventsDiv.scrollTop = eventsDiv.scrollHeight;
+    }
+
+    function clearAll() {
+        if (eventSource) eventSource.close();
+        document.getElementById('events').innerHTML = '';
+        document.getElementById('report').style.display = 'none';
+        document.getElementById('status').textContent = 'Status: Waiting for task submission...';
+        document.getElementById('taskIdDisplay').textContent = '';
+        document.getElementById('submitBtn').disabled = false;
+    }
+</script>
+
+</body>
+</html>
