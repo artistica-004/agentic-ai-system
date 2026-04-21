@@ -95,5 +95,8 @@ pytest tests/ -v
 - **pydantic** — data validation
 - **pytest** — testing
 
+  <img width="1107" height="862" alt="image" src="https://github.com/user-attachments/assets/2aa14c19-66d3-4859-8e72-b5f0a91b4c56" />
+
+
 ## 📄 Documentation
 Full technical documentation: [View Docs](docs/agentic_ai_documentation.docx)
