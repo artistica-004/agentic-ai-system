@@ -1,4 +1,4 @@
-# Agentic AI System for Multi-Step Tasks
+# AgentRelay — agents passing work down the relay
 
 A production-grade multi-agent AI system built with FastAPI, Redis, and Groq LLM.
 
